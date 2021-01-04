@@ -9,9 +9,17 @@ Download the firmware to use:
 
     $ curl -o digicap.dav <url of firmware>
 
+    or
+
+    $ curl -o firmware.zip <url of firmware>
+
 Run the script:
 
-    $ sudo ./hikvision_tftpd.py
+    $ sudo ./hikvision_tftpd.py digicap.dav
+
+    or
+
+    $ sudo ./hikvision_tftpd.py firmware.zip
 
 Hit ctrl-C when done.
 
@@ -35,7 +43,7 @@ there are two known configurations:
 
 This program defaults to the former. The latter requires commandline overrides:
 
-    $ sudo ./hikvision_tftp.py --server-ip=172.9.18.80 --filename=digicap.mav
+    $ sudo ./hikvision_tftp.py --server-ip=172.9.18.80 digicap.mav 
 
 If nothing happens when your device restarts, your device may be expecting
 another IP address. tcpdump may be helpful in diagnosing this:

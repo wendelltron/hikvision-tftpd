@@ -17,6 +17,7 @@ import socket
 import struct
 import sys
 import time
+import zipfile
 
 HANDSHAKE_BYTES = struct.pack('20s', 'SWKH')
 _HANDSHAKE_SERVER_PORT = 9978
@@ -165,25 +166,45 @@ class Server(object):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--filename', default='digicap.dav',
-                        help='file to serve; used both to read from the local '
-                             'disk and for the filename to expect from client')
+    parser.add_argument('file', metavar='firmware-file', default='digicap.dav', nargs='?',
+                        help='file to serve; this can be a raw firmware file or a zip file containing a firmware file.')
+    parser.add_argument('--archived-filename', default='digicap.dav',
+                        help='filename inside the zip archive.')
+    parser.add_argument('--tftp-filename',
+                        help='filename to expect from client. defaults to the name of the firmware file, or if the firmware file is an arcive, the name of the archived file.')
     parser.add_argument('--server-ip', default='192.0.0.128',
                         help='IP address to serve from.')
     args = parser.parse_args()
+
+    tftp_filename = None
+
     try:
-        file_contents = open(args.filename, mode='rb').read()
+        try:
+            with zipfile.ZipFile(args.file, 'r') as archive:
+                file_contents = archive.read(args.archived_filename)
+                tftp_filename = args.archived_filename
+
+        except KeyError:
+            print >> sys.stderr, 'Error: can\'t read %s from %s' % (args.archived_filename, args.file)
+            parser.error('Check that the archive contains the file or specify a different archived filename.')
+
+        except zipfile.BadZipfile:
+            file_contents = open(args.file, mode='rb').read()
+            tftp_filename = args.archived_filename
+
     except IOError, e:
-        print 'Error: can\'t read %s' % args.filename
+        print >> sys.stderr, 'Error: can\'t read %s' % args.file
         if e.errno == errno.ENOENT:
-            print 'Please download/move it to the current working directory.'
-            sys.exit(1)
+            parser.error('Please download/move it to the current working directory or provide a filename as an argument.')
         raise
+
+    if args.tftp_filename is not None:
+        tftp_filename = args.tftp_filename
 
     try:
         server = Server((args.server_ip, _HANDSHAKE_SERVER_PORT),
                         (args.server_ip, _TFTP_SERVER_PORT),
-                        args.filename, file_contents)
+                        tftp_filename, file_contents)
     except Error, e:
         print 'Error: %s' % e.message
         sys.exit(1)
